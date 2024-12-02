@@ -1,0 +1,8 @@
+site_name: DataLake Ingestion Security & Monitoring
+theme:
+  name: material
+nav:
+  - Welcome: index.md
+  - Security Methods: security_methods.md
+  - Ingestion: data_ingestion.md
+  - Monitoring: monitoring.md

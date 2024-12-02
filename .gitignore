@@ -1,24 +1,45 @@
 # Environnements virtuels
 .env
 .venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
 # Fichiers Python
 __pycache__/
 *.py[cod]
+*.pyc
+*.pyo
+*.pyd
 
 # Terraform
 *.tfstate
 .terraform/
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
 
 # MkDocs
 site/
+*.html
+*.log
 
 # Logs
 *.log
+*.tmp
+*.bak
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
 
 # IDE
 .vscode/
 .idea/
+*.iml
 
 # OS
 .DS_Store
+desktop.ini
