@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "datalake-ingestion-security-monitoring"
+version = "0.1.0"
+description = "securing , monitoring and ingestion of data on Azure Data Lake"
+authors = ["Serge Buasa <sergebuasa@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+mkdocs = "^1.6.1"
+mkdocs-material = "^9.5.47"
+azure-storage-blob = "^12.24.0"
+azure-identity = "^1.19.0"
+azure-keyvault-secrets = "^4.9.0"
+pyspark = "^3.5.3"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+black = "^24.10.0"
+isort = "^5.13.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

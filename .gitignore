@@ -1,0 +1,24 @@
+# Environnements virtuels
+.env
+.venv
+
+# Fichiers Python
+__pycache__/
+*.py[cod]
+
+# Terraform
+*.tfstate
+.terraform/
+
+# MkDocs
+site/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
