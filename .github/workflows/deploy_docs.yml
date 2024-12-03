@@ -12,7 +12,9 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
@@ -22,4 +24,6 @@ jobs:
       run: pip install mkdocs mkdocs-material
 
     - name: Deploy documentation
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: mkdocs gh-deploy --force
