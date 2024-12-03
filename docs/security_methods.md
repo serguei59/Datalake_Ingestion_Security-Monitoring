@@ -132,7 +132,6 @@ This document provides an overview of the primary security methods available to 
 
 The goal is to understand each method, its advantages, limitations, and use cases to ensure a secure and robust architecture.
 
-
 ---
 
 # Comparative Table (English)
