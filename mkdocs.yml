@@ -1,8 +1,32 @@
 site_name: DataLake Ingestion Security & Monitoring
+site_url: https://serguei59.github.io/Datalake_Ingestion_Security-Monitoring/
+repo_url: https://github.com/serguei59/Datalake_Ingestion_Security-Monitoring
 theme:
   name: material
+  palette:
+    primary: 'blue'
+    accent: 'light blue'
+
 nav:
-  - Welcome: index.md
-  - Security Methods: security_methods.md
-  - Ingestion: data_ingestion.md
-  - Monitoring: monitoring.md
+  - Home: index.md
+  - Preliminary Setup:
+      - Security Methods: 1_preliminary/security_methods.md
+      - Preliminary Setup: 1_preliminary/preliminary-setup.md
+  - Terraform:
+      - Terraform Setup: 2_terraform/terraform-setup.md
+      - Backend Setup: 2_terraform/backend-setup.md
+  - Ingestion:
+      - Overview: 3_ingestion/ingestion-overview.md
+      - PySpark Ingestion: 3_ingestion/pyspark-ingestion.md
+  - Monitoring:
+      - Overview: 4_monitoring/monitoring-overview.md
+      - Azure Monitor: 4_monitoring/azure-monitor.md
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - codehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - footnotes

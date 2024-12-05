@@ -56,8 +56,7 @@ This preliminary step sets up a secure environment to allow Terraform to access 
 
 A Bash script is provided to automate the setup process. Download it from the GitHub repository:
 
-
-wget https://raw.githubusercontent.com/<username>/<repository>/main/scripts/setup_preliminary_environment.sh
+https://github.com/serguei59/Datalake_Ingestion_Security-Monitoring/blob/main/src/set_up_preliminary_environment.sh
 
 ### **2. Run the Script**
 
@@ -77,11 +76,11 @@ The script retrieves the following
 ####  **Tenant ID**
 ####  **Create Resource Groups**
 3 resource_groups are created:
-RG_Security
-RG_Terraform
+RG_Security,
+RG_Terraform,
 RG_Projet
 #### **Set up Azure Key Vault**
-Creatio and store secrets in Key Vault
+Creation and store secrets in Key Vault
 #### **Configure Terraform Back end**
 Create a Storage Account and a Container for the State
 #### **Create or Regenerate the Secondary Service Principal (SP2)**
@@ -101,14 +100,13 @@ Verify SP2 exists:
 az ad sp list --dipslay-name keyvault-access-sp
 ```
 #### **3. GithHub Secrets**
-
 ##### **Steps to Verify GitHub Secrets**
 
 1. **Navigate to the Secrets Management Page**
    - Open your GitHub repository.
    - Go to **Settings > Secrets and Variables > Actions**.
 
-   ![Navigate to Secrets](https://docs.github.com/assets/images/help/repository/secrets.png)
+##### [Navigate to Secrets](https://docs.github.com/assets/images/help/repository/secrets.png)
 
 2. **Ensure the Following Secrets are Present:**
 
