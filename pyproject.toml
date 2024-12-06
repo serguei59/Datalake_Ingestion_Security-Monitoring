@@ -24,3 +24,10 @@ isort = "^5.13.2"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+# Register Bash script
+setup-env = "bash scripts/setup_environment.sh"
+
+# Register Python script
+run-ingestion = "src.pyspark_ingestion:main"
