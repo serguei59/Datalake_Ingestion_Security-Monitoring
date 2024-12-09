@@ -92,11 +92,26 @@ fi
 #----------------------------------------------------------------------------
 # Create Service Principal SP_KV_NAME for Key Vault Secrets access
 #----------------------------------------------------------------------------
+# Supprime any existing Service Principal
+APP_ID=$(az ad sp list --display-name "$SP_KV_NAME" --query "[0].appId" -o tsv)
+
+if [ -n "$APP_ID" ]; then
+    echo "Deleting existing Service Principal: $SP_KV_NAME..."
+    az ad sp delete --id "$APP_ID"
+    if [ $? -eq 0 ]; then
+        echo "Service Principal $SP_KV_NAME deleted successfully."
+    else
+        echo "Failed to delete Service Principal $SP_KV_NAME."
+        exit 1
+    fi
+fi
+
+# Create Service Principal
+
 echo "Creating Service Principal: $SP_KV_NAME..."
 SP_OUTPUT=$(az ad sp create-for-rbac \
     --name "$SP_KV_NAME"  \
-    --role "Contributor" \
-    --scopes "/subscriptions/$SUBSCRIPTION_ID" \
+    --skip-assignment \
     --query "{appId: appId, password: password}" -o json)
     
 # Validate SP_OUTPUT
@@ -116,15 +131,31 @@ fi
 
 echo "Service Principal created: $SP_KV_NAME"
 
+# Customize Service Principal: Add Contributor role and Reduce Key Vault's scope
+echo "Adding Contributor role and Reducing Service Principal's scope to the specific Key Vault."
+az role assignment create \
+    --assignee "$SP_CLIENT_ID" \
+    --role "Contributor" \
+    --scope "$(az keyvault show --name "$KEYVAULT_NAME" --query id -o tsv)" || {
+    echo "Failed to reduce scope."
+    exit 1
+}
+echo " Contributor role added and Scope reduced to Key Vault successfully"
+
 #------------------------------
 # Add Access Policy for Secrets
 #------------------------------
+
+#
 echo "Setting Key Vault Access Policy for Service Principal..."
 az keyvault set-policy  \
     --name "$KEYVAULT_NAME" \
     --spn "$SP_CLIENT_ID" \
-    --secret-permissions get list
-echo "Access Policy set sucsessfully"
+    --secret-permissions get list || {
+    echo "Failed to add Access Policy."
+    exit 1
+}
+echo "Access Policy set successfully"
 
 #-------------
 #Configuration
@@ -180,16 +211,7 @@ else
     exit 1
 fi
 
-# Reduce Key Vault's scope
-echo "Reducing Service Principal's scope to the specific Key Vault."
-az role assignment create \
-    --assignee "$SP_CLIENT_ID" \
-    --role "Contributor" \
-    --scope "$(az keyvault show --name "$KEYVAULT_NAME" --query id -o tsv)" || {
-    echo "Failed to reduce scope."
-    exit 1
-}
-echo "Scope reduced successfully"
+
 #----------------------------------------------------------------------------
 # Monitoring & Alerts
 #----------------------------------------------------------------------------

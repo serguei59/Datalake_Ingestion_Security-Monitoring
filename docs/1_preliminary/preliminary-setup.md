@@ -6,14 +6,14 @@ This preliminary step sets up a secure environment to allow Terraform to access 
 
 ### **Objectives**
 1. Create an **Azure Key Vault** to secure sensitive information.
-2. Configure a **secondary Service Principal (SP2)** with limited permissions to access the Key Vault.
+2. Configure a **Service Principal (SP)** with limited permissions to access the Key Vault.
 3. Set up a **Storage Account** for the Terraform backend.
 4. Add necessary secrets to **GitHub Secrets** for CI/CD workflows.
 
 ### **Why this Approach?**
 
 - **Enhanced Security**: Secrets are stored securely in Azure Key Vault and not exposed in code or logs.
-- **Role Isolation**: The secondary Service Principal has limited access to the Key Vault, reducing the impact of potential compromise.
+- **Role Isolation**: The Service Principal has limited access to the Key Vault, reducing the impact of potential compromise.
 - **CI/CD Integration**: Secrets are injected into GitHub Secrets, enabling Terraform workflows to run autonomously.
 
 ---
@@ -21,7 +21,7 @@ This preliminary step sets up a secure environment to allow Terraform to access 
 ## **Technical Choices and Justifications**
 
 ### **1. Azure Key Vault**
-- Used to store sensitive information like `SubscriptionId` and `TenantId`.
+- Used to store sensitive information like `SubscriptionId`,`TenantId`, and `SP-Secret`.
 - Benefits:
   - **Encryption at rest and in transit**.
   - **Access logging** through Azure Monitor.
