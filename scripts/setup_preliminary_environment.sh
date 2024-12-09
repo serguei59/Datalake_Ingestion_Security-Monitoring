@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #------------------------------------------
-# Variables and qprerequisite
+# Variables and prerequisite
 #------------------------------------------
 #chemin vers .env
 #$0 : représente le chemin du script actuellement exécuté
@@ -60,30 +60,6 @@ else
     exit 1
 fi
 
-# Store secrets in Key Vault
-echo "Storing secrets in Key Vault..."
-SUBSCRIPTION_ID=$(az account show --query "id" -o tsv)
-TENANT_ID=$(az account show --query "tenantId" -o tsv)
-
-echo "Storing SubScriptionId in Key Vault..."
-az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "SubscriptionId" --value "$SUBSCRIPTION_ID"
-if [ $? -eq 0 ]; then
-    echo "Secret 'SubscriptionID' stored successfully."
-else
-    echo "Failed to store 'SubscriptionId."
-    exit 1
-fi
-
-echo "Storing TenantId in Key Vault..."
-echo "TENANT_ID is : $TENANT_ID"
-az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "TenantId" --value "$TENANT_ID"
-if [ $? -eq 0 ]; then
-    echo "Secret 'TenantId' stored successfully."
-else
-    echo "Failed to store 'TenantId'."
-    exit 1
-fi
-
 #---------------------------------------------
 # Create Storage Account for Terraform Backend
 #---------------------------------------------
@@ -104,7 +80,8 @@ fi
 echo "Creating container: $CONTAINER_NAME..."
 az storage container create \
     --name "$CONTAINER_NAME" \
-    --account-name "$STORAGE_ACCOUNT_NAME"    
+    --account-name "$STORAGE_ACCOUNT_NAME" \
+    --auth-mode login    
 if [ $? -eq 0 ]; then
 echo "Container $CONTAINER_NAME created successfully."
 else
@@ -112,4 +89,115 @@ else
     exit 1
 fi
 
+#----------------------------------------------------------------------------
+# Create Service Principal SP_KV_NAME for Key Vault Secrets access
+#----------------------------------------------------------------------------
+echo "Creating Service Principal: $SP_KV_NAME..."
+SP_OUTPUT=$(az ad sp create-for-rbac \
+    --name "$SP_KV_NAME"  \
+    --role "Contributor" \
+    --scopes "/subscriptions/$SUBSCRIPTION_ID" \
+    --query "{appId: appId, password: password}" -o json)
+    
+# Validate SP_OUTPUT
+if [[ -z "$SP_OUTPUT" ]]; then
+    echo "Failed to create Service Principal."
+    exit 1
+fi
 
+# Extract  ClientId and ClientSecret using jq
+SP_CLIENT_ID=$(echo "$SP_OUTPUT" | jq -r '.appId')
+SP_CLIENT_SECRET=$(echo "$SP_OUTPUT" | jq -r '.password')
+
+if [[ -z "$SP_CLIENT_ID" || -z "$SP_CLIENT_SECRET" ]]; then
+    echo "Failed to extract ClientId and ClientSecret from Service Principal creation output"
+    exit 1
+fi
+
+echo "Service Principal created: $SP_KV_NAME"
+
+#------------------------------
+# Add Access Policy for Secrets
+#------------------------------
+echo "Setting Key Vault Access Policy for Service Principal..."
+az keyvault set-policy  \
+    --name "$KEYVAULT_NAME" \
+    --spn "$SP_CLIENT_ID" \
+    --secret-permissions get list
+echo "Access Policy set sucsessfully"
+
+#-------------
+#Configuration
+#-------------
+
+# Store SubscriptionId & TenantId in Key Vault
+echo "Storing secrets in Key Vault..."
+SUBSCRIPTION_ID=$(az account show --query "id" -o tsv)
+TENANT_ID=$(az account show --query "tenantId" -o tsv)
+
+echo "Storing SubScriptionId in Key Vault..."
+az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "SubscriptionId" --value "$SUBSCRIPTION_ID"
+if [ $? -eq 0 ]; then
+    echo "Secret 'SubscriptionID' stored successfully."
+else
+    echo "Failed to store 'SubscriptionId."
+    exit 1
+fi
+
+echo "Storing TenantId in Key Vault..."
+az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "TenantId" --value "$TENANT_ID"
+if [ $? -eq 0 ]; then
+    echo "Secret 'TenantId' stored successfully."
+else
+    echo "Failed to store 'TenantId'."
+    exit 1
+fi
+
+# Store SP ClientSecret in Key Vault
+echo "Storing Service Principal ClientSecret in Key Vault..."
+az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "SP-ClientSecret" --value "$SP_CLIENT_SECRET"
+if [ $? -eq 0 ]; then
+    echo "Secret 'SP-ClientSecret' stored successfully."
+else
+    echo "Failed to store 'SP-ClientSecret'."
+    exit 1
+fi
+
+# Check if GitHub CLI is installed
+if ! command -v gh &>/dev/null; then
+    echo "GitHub CLI is not installed or not in Path. Please install and configure it"
+    exit 1
+fi
+
+# Add Service Principal ID to GitHub Secrets
+echo "Adding Service Principal ClientId to GitHub Secrets..."
+/usr/bin/gh secret set ARM_CLIENT_ID --repo "$GITHUB_REPO" -b "$SP_CLIENT_ID"
+if [ $? -eq 0 ]; then
+    echo "Secret 'SP-ClientId' # Reassign role Key Vault Secrets User
+ successfully to GitHub Secrets."
+else
+    echo "Failed to add 'SP-ClientId'."
+    exit 1
+fi
+
+# Reduce Key Vault's scope
+echo "Reducing Service Principal's scope to the specific Key Vault."
+az role assignment create \
+    --assignee "$SP_CLIENT_ID" \
+    --role "Contributor" \
+    --scope "$(az keyvault show --name "$KEYVAULT_NAME" --query id -o tsv)" || {
+    echo "Failed to reduce scope."
+    exit 1
+}
+echo "Scope reduced successfully"
+#----------------------------------------------------------------------------
+# Monitoring & Alerts
+#----------------------------------------------------------------------------
+
+#----------------------------------------------------------------------------
+# Clean Up Sensitive Variables
+#----------------------------------------------------------------------------
+unset SP_CLIENT_SECRET
+echo "Sensitive variables cleared from memory"
+
+echo "Preliminary setup completed succesfully"
