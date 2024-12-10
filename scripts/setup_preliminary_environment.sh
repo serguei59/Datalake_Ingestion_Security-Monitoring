@@ -51,8 +51,24 @@ fi
 #------------------------------------------
 # Create Key Vault
 #------------------------------------------
+# Check and handle Deleted Key Vault
+echo "Checking for existing deleted Key Vault..."
+DELETED_KEYVAULT=$(az keyvault list-deleted --query "[?name=='$KEYVAULT_NAME']" -o tsv)
+
+if [ -n "$DELETED_KEYVAULT" ]; then
+    echo "Key Vault $KEYVAULT_NAME exists in deleted state. Attempting to purge..."
+    az keyvault purge --name "$KEYVAULT_NAME"
+    if [ $? -eq 0 ]; then
+        echo "Key Vault $KEYVAULT_NAME purged successfully."
+    else
+        echo "Failed to purge Key Vault $KEYVAULT_NAME."
+        exit 1
+    fi
+fi
+# Create Key Vault
 echo "Creating Key Vault : $KEYVAULT_NAME"
-az keyvault create --name "$KEYVAULT_NAME" --resource-group "$RESOURCE_GROUP_SECURITY" --location "$LOCATION"
+az keyvault create --name "$KEYVAULT_NAME" --resource-group "$RESOURCE_GROUP_SECURITY" --location "$LOCATION" \
+    --enable-rbac-authorization false
 if [ $? -eq 0 ]; then
     echo "Key Vault $KEYVAULT_NAME created successfully."
 else
@@ -82,6 +98,7 @@ az storage container create \
     --name "$CONTAINER_NAME" \
     --account-name "$STORAGE_ACCOUNT_NAME" \
     --auth-mode login    
+
 if [ $? -eq 0 ]; then
 echo "Container $CONTAINER_NAME created successfully."
 else
@@ -92,7 +109,7 @@ fi
 #----------------------------------------------------------------------------
 # Create Service Principal SP_KV_NAME for Key Vault Secrets access
 #----------------------------------------------------------------------------
-# Supprime any existing Service Principal
+# Delete any existing Service Principal
 APP_ID=$(az ad sp list --display-name "$SP_KV_NAME" --query "[0].appId" -o tsv)
 
 if [ -n "$APP_ID" ]; then
@@ -105,6 +122,7 @@ if [ -n "$APP_ID" ]; then
         exit 1
     fi
 fi
+
 
 # Create Service Principal
 
@@ -204,22 +222,20 @@ fi
 echo "Adding Service Principal ClientId to GitHub Secrets..."
 /usr/bin/gh secret set ARM_CLIENT_ID --repo "$GITHUB_REPO" -b "$SP_CLIENT_ID"
 if [ $? -eq 0 ]; then
-    echo "Secret 'SP-ClientId' # Reassign role Key Vault Secrets User
- successfully to GitHub Secrets."
+    echo " Added 'SP-ClientId successfully to GitHub Secrets."
 else
     echo "Failed to add 'SP-ClientId'."
     exit 1
 fi
-
-
-#----------------------------------------------------------------------------
-# Monitoring & Alerts
-#----------------------------------------------------------------------------
 
 #----------------------------------------------------------------------------
 # Clean Up Sensitive Variables
 #----------------------------------------------------------------------------
 unset SP_CLIENT_SECRET
 echo "Sensitive variables cleared from memory"
+
+#----------------------------------------------------------------------------
+# Monitoring & Alerts
+#----------------------------------------------------------------------------
 
 echo "Preliminary setup completed succesfully"
