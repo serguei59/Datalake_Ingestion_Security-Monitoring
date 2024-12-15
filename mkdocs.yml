@@ -11,7 +11,7 @@ nav:
   - Home: index.md
   - Preliminary Setup:
       - Security Methods: 1_preliminary/security_methods.md
-      - Preliminary Setup: 1_preliminary/preliminary-setup.md
+      - Preliminary Setup: 1_preliminary/preliminary_setup.md
   - Terraform:
       - Terraform Setup: 2_terraform/terraform-setup.md
       - Backend Setup: 2_terraform/backend-setup.md

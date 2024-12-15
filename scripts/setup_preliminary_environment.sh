@@ -27,12 +27,19 @@ if ! az account show &>/dev/null; then
 fi
 echo "Azure CLI login verified"
 
+# Check if GitHub CLI is installed
+if ! command -v gh &>/dev/null; then
+    echo "GitHub CLI is not installed or not in Path."
+    echo "Please install it, GitHub CLI: https://cli.github.com/"
+    exit 1
+fi
+echo "GitHub CLI is installed"
+
 #------------------------------------------
 # Create Resource Groups
 #------------------------------------------
 echo "Creating Resource Group: $RESOURCE_GROUP_SECURITY"
-az group create --name "$RESOURCE_GROUP_SECURITY" --location "$LOCATION"
-if [ $? -eq 0 ]; then
+if az group create --name "$RESOURCE_GROUP_SECURITY" --location "$LOCATION"; then
     echo "Resource Group $RESOURCE_GROUP_SECURITY created successfully."
 else
     echo "Failed to create Resource group $RESOURCE_GROUP_SECURITY."
@@ -40,8 +47,7 @@ else
 fi
 
 echo "Creating Resource Group: $RESOURCE_GROUP_TERRAFORM"
-az group create --name "$RESOURCE_GROUP_TERRAFORM" --location "$LOCATION"
-if [ $? -eq 0 ]; then
+if az group create --name "$RESOURCE_GROUP_TERRAFORM" --location "$LOCATION"; then
     echo "Resource Group $RESOURCE_GROUP_TERRAFORM created successfully."
 else
     echo "Failed to create Resource group $RESOURCE_GROUP_TERRAFORM."
@@ -57,8 +63,7 @@ DELETED_KEYVAULT=$(az keyvault list-deleted --query "[?name=='$KEYVAULT_NAME']" 
 
 if [ -n "$DELETED_KEYVAULT" ]; then
     echo "Key Vault $KEYVAULT_NAME exists in deleted state. Attempting to purge..."
-    az keyvault purge --name "$KEYVAULT_NAME"
-    if [ $? -eq 0 ]; then
+    if az keyvault purge --name "$KEYVAULT_NAME"; then
         echo "Key Vault $KEYVAULT_NAME purged successfully."
     else
         echo "Failed to purge Key Vault $KEYVAULT_NAME."
@@ -67,9 +72,8 @@ if [ -n "$DELETED_KEYVAULT" ]; then
 fi
 # Create Key Vault
 echo "Creating Key Vault : $KEYVAULT_NAME"
-az keyvault create --name "$KEYVAULT_NAME" --resource-group "$RESOURCE_GROUP_SECURITY" --location "$LOCATION" \
-    --enable-rbac-authorization false
-if [ $? -eq 0 ]; then
+if az keyvault create --name "$KEYVAULT_NAME" --resource-group "$RESOURCE_GROUP_SECURITY" --location "$LOCATION" \
+    --enable-rbac-authorization false; then
     echo "Key Vault $KEYVAULT_NAME created successfully."
 else
     echo "Failed to create Key Vault $KEYVAULT_NAME."
@@ -80,13 +84,12 @@ fi
 # Create Storage Account for Terraform Backend
 #---------------------------------------------
 echo "Creating Storage Account: $STORAGE_ACCOUNT_NAME..."
-az storage account create \
+if az storage account create \
     --name "$STORAGE_ACCOUNT_NAME" \
     --resource-group "$RESOURCE_GROUP_TERRAFORM" \
     --location "$LOCATION" \
-    --sku Standard_LRS
-if [ $? -eq 0 ]; then
-echo "Storage Account $STORAGE_ACCOUNT_NAME created successfully."
+    --sku Standard_LRS; then
+    echo "Storage Account $STORAGE_ACCOUNT_NAME created successfully."
 else
     echo "Failed to create Storage Account $STORAGE_ACCOUNT_NAME."
     exit 1
@@ -94,13 +97,11 @@ fi
 
 # Create Container for Terraform state
 echo "Creating container: $CONTAINER_NAME..."
-az storage container create \
+if az storage container create \
     --name "$CONTAINER_NAME" \
     --account-name "$STORAGE_ACCOUNT_NAME" \
-    --auth-mode login    
-
-if [ $? -eq 0 ]; then
-echo "Container $CONTAINER_NAME created successfully."
+    --auth-mode login; then
+    echo "Container $CONTAINER_NAME created successfully."
 else
     echo "Failed to create Container $CONTAINER_NAME."
     exit 1
@@ -114,8 +115,7 @@ APP_ID=$(az ad sp list --display-name "$SP_KV_NAME" --query "[0].appId" -o tsv)
 
 if [ -n "$APP_ID" ]; then
     echo "Deleting existing Service Principal: $SP_KV_NAME..."
-    az ad sp delete --id "$APP_ID"
-    if [ $? -eq 0 ]; then
+    if az ad sp delete --id "$APP_ID"; then
         echo "Service Principal $SP_KV_NAME deleted successfully."
     else
         echo "Failed to delete Service Principal $SP_KV_NAME."
@@ -125,7 +125,6 @@ fi
 
 
 # Create Service Principal
-
 echo "Creating Service Principal: $SP_KV_NAME..."
 SP_OUTPUT=$(az ad sp create-for-rbac \
     --name "$SP_KV_NAME"  \
@@ -185,8 +184,7 @@ SUBSCRIPTION_ID=$(az account show --query "id" -o tsv)
 TENANT_ID=$(az account show --query "tenantId" -o tsv)
 
 echo "Storing SubScriptionId in Key Vault..."
-az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "SubscriptionId" --value "$SUBSCRIPTION_ID"
-if [ $? -eq 0 ]; then
+if az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "SubscriptionId" --value "$SUBSCRIPTION_ID"; then
     echo "Secret 'SubscriptionID' stored successfully."
 else
     echo "Failed to store 'SubscriptionId."
@@ -194,8 +192,7 @@ else
 fi
 
 echo "Storing TenantId in Key Vault..."
-az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "TenantId" --value "$TENANT_ID"
-if [ $? -eq 0 ]; then
+if az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "TenantId" --value "$TENANT_ID"; then
     echo "Secret 'TenantId' stored successfully."
 else
     echo "Failed to store 'TenantId'."
@@ -204,24 +201,16 @@ fi
 
 # Store SP ClientSecret in Key Vault
 echo "Storing Service Principal ClientSecret in Key Vault..."
-az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "SP-ClientSecret" --value "$SP_CLIENT_SECRET"
-if [ $? -eq 0 ]; then
+if az keyvault secret set --vault-name "$KEYVAULT_NAME" --name "SP-ClientSecret" --value "$SP_CLIENT_SECRET"; then
     echo "Secret 'SP-ClientSecret' stored successfully."
 else
     echo "Failed to store 'SP-ClientSecret'."
     exit 1
 fi
 
-# Check if GitHub CLI is installed
-if ! command -v gh &>/dev/null; then
-    echo "GitHub CLI is not installed or not in Path. Please install and configure it"
-    exit 1
-fi
-
 # Add Service Principal ID to GitHub Secrets
 echo "Adding Service Principal ClientId to GitHub Secrets..."
-/usr/bin/gh secret set ARM_CLIENT_ID --repo "$GITHUB_REPO" -b "$SP_CLIENT_ID"
-if [ $? -eq 0 ]; then
+if /usr/bin/gh secret set ARM_CLIENT_ID --repo "$GITHUB_REPO" -b "$SP_CLIENT_ID"; then
     echo " Added 'SP-ClientId successfully to GitHub Secrets."
 else
     echo "Failed to add 'SP-ClientId'."
@@ -237,5 +226,117 @@ echo "Sensitive variables cleared from memory"
 #----------------------------------------------------------------------------
 # Monitoring & Alerts
 #----------------------------------------------------------------------------
+echo "📊 Enabling Monitoring for Key Vault..."
+
+# define supported API version
+API_VERSION="2024-08-01"
+
+# Check if diagnostic settings already exist
+EXISTING_DIAGNOSTIC_SETTINGS=$(az monitor diagnostic-settings list\
+    --resource "$(az keyvault show --name "$KEYVAULT_NAME" --query id -o tsv)" \
+    --query "[?name=='KeyVaultLogsAnalytics'].name" -o tsv
+    )
+if [ -n  "$EXISTING_DIAGNOSTIC_SETTINGS" ]; then
+    echo "Diagnostic settings already exist for Key Vault. Skipping creation."
+else
+    echo "Creating Log Analytrics workspace and Diagnostics Settings."
+
+    # Create Log Analytics Workspace if it doesn't exists
+    echo "Creating Log Analytics Workspace..."
+    WORKSPACE_ID=$(az monitor log-analytics workspace create \
+    --resource-group "$RESOURCE_GROUP_SECURITY" \
+    --workspace-name "$LOG_ANALYTICS_SECURITY_WORKSPACE_NAME" \
+    --location "$LOCATION" \
+    --query id -o tsv)
+    
+    if [ -z "$WORKSPACE_ID" ]; then
+        echo "Failed to create Log Analytics Workspace."
+        exit 1
+    fi
+    echo "Log Analytics Workspace created successfully."
+
+    # === Link Key Vault Diagnostics to Log Analytics Workspace ===
+    echo "Linking Key Vault diagnostics to Log Analytics Workspace..."
+    if az monitor diagnostic-settings create \
+        --name "KeyVaultLogsToLogAnalytics" \
+        --resource "$(az keyvault show --name "$KEYVAULT_NAME" --query id -o tsv)" \
+        --workspace "$(az monitor log-analytics workspace show --resource-group "$RESOURCE_GROUP_SECURITY" --name "$LOG_ANALYTICS_SECURITY_WORKSPACE_NAME" --query id -o tsv)" \
+        --logs '[{"category": "AuditEvent","enabled": true}]'; then
+        echo "✅ Key Vault diagnostics linked to Log Analytics Workspace."
+    else
+        echo "Failed to link Key Vault diagnostics to Log Analytics Workspace."
+        exit 1
+    fi
+fi
+
+# Set Alert rules for Key Vault
+
+## Check if Action Group exists
+echo "Checking if Action Group exists..."
+EXISTING_ACTION_GROUP=$(az monitor action-group show \
+    --resource-group "$RESOURCE_GROUP_SECURITY" \
+    --name "KeyVaultAlertGroup" \
+    --query id -o tsv 2>/dev/null)
+
+if [ -z "$EXISTING_ACTION_GROUP" ]; then
+    echo "Creating Action Group for Key vault Alerts..."
+    if az monitor action-group create \
+        --name "KeyVaultAlertGroup" \
+        --resource-group "$RESOURCE_GROUP_SECURITY" \
+        --short-name "KVAlertGroup"; then
+        echo "Action Group created successfully."
+
+        # Add email receiver to the action group
+        echo "Adding email receiver to Action Group..."
+        if az monitor action-group update \
+        --name "KeyVaultAlertGroup" \
+        --resource-group "$RESOURCE_GROUP_SECURITY" \
+        --add-action email "EmailReceiver" "sergebuasa@gmail.com"; then
+            echo "Email receiver added successfully."
+        else
+            echo "Failed to add email receiver to Action Group"
+            exit 1
+        fi
+    else
+        echo "Failed to create Action Group."
+        exit 1
+    fi
+else
+    echo "Action Group already exists. Skipping creation"
+fi
+
+## Retrieve Action Group Id
+KVGROUP_ID=$(az monitor action-group show \
+    --resource-group "$RESOURCE_GROUP_SECURITY" \
+    --name "KeyVaultAlertGroup" \
+    --query id -o tsv)
+
+echo "Action Group Id: $KVGROUP_ID"
+
+if [ -z "$KVGROUP_ID" ]; then
+    echo "Failed to retrieve Action Group Id."
+    exit 1
+else
+    echo "Action Group Id retrieved successfully."
+fi
+
+## Setting Alert Rules
+echo "🚨 Setting Alert Rules for Key Vault..."
+if az monitor metrics alert create \
+    --name "KeyVaultAccessAlert" \
+    --resource-group "$RESOURCE_GROUP_SECURITY" \
+    --scopes "$(az keyvault show --name "$KEYVAULT_NAME" --query id -o tsv)" \
+    --condition "total ServiceApiHit > 50" \
+    --description "Alert trigerred on Key Vault access" \
+    --evaluation-frequency "PT5M" \
+    --window-size "PT5M" \
+    --severity 2 \
+    --action "$KVGROUP_ID" \
+    --debug; then
+    echo "✅ Alerts configured for Key Vault access."
+else
+    echo "Failed to configure alerts for Key Vault."
+    exit 1
+fi
 
 echo "Preliminary setup completed succesfully"
