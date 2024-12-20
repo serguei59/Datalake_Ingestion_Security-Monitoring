@@ -34,7 +34,26 @@ if ! command -v gh &>/dev/null; then
 fi
 echo "GitHub CLI is installed"
 
-# Variables
+# Variables(inutile cf importation de toutes celles du .env)
 KEYVAULT_NAME="$KEYVAULT_NAME"
+SP_NAME="$SP_KV_NAME"
+GITHUB_REPO="$GITHUB_REPO"
+
+# Generate new ClientSecret for KV Service Principal
+echo "Generating new ClientSecret for KeyVault's access Service Principal..."
+SP_CLIENT_SECRET_REGENERATED=$(az ad sp credentials reset \
+    --name "$SP_KV_NAME" \
+    --query "password" -o tsv)
+
+if [ -z "$SP_CLIENT_SECRET_REGENERATED" ]; then
+    echo "Failed to generate new secret."
+    exit 1
+fi
+echo "New secret generated."
+
+# Update KV Service Principal's secrets in Azure Key Vault
+echo "Storing updated secrets in Azure Key Vault "
+az keyvault secret set --vault-name "$KEYVAULT_NAME" --name
+
 
 
